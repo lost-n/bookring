@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>나의 독서 기록</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115;--panel:#171a21;--acc:#3b82f6;--mut:#9aa3b2;--tx:#e9ecf1;--ok:#10b981;--warn:#f59e0b;--bad:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Helvetica,Arial,sans-serif;line-height:1.45}
+  header{position:sticky;top:0;background:rgba(15,17,21,.8);backdrop-filter:saturate(1.2) blur(10px);z-index:5;border-bottom:1px solid #222}
+  .wrap{max-width:980px;margin:0 auto;padding:20px}
+  h1{font-size:22px;margin:0;padding:14px 20px}
+  .grid{display:grid;gap:16px}
+  @media(min-width:860px){.grid-2{grid-template-columns:1.2fr .8fr}}
+  .card{background:var(--panel);border:1px solid #222;border-radius:14px;padding:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
+  input,textarea,select,button{
+    background:#0e1219;color:var(--tx);border:1px solid #2a2f3a;border-radius:10px;padding:10px 12px;font-size:14px
+  }
+  textarea{min-height:96px;resize:vertical}
+  input[type="number"]{width:120px}
+  button{cursor:pointer}
+  .btn{background:#111726}
+  .btn.primary{background:var(--acc);border-color:#255ad6}
+  .btn.ghost{background:transparent;border-color:#2a2f3a}
+  .btn.success{background:var(--ok);border-color:#0e9a6c}
+  .btn.warn{background:var(--warn);border-color:#b76b00}
+  .btn.danger{background:var(--bad);border-color:#b01623}
+  .mut{color:var(--mut)}
+  .progress{height:12px;background:#0e1219;border:1px solid #2a2f3a;border-radius:999px;overflow:hidden}
+  .progress > span{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);width:0%}
+  .stat{display:flex;gap:10px;align-items:baseline}
+  .stat b{font-size:22px}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+  .kpi .card{padding:12px}
+  .inline{display:inline-flex;gap:8px;align-items:center}
+  .pill{font-size:12px;padding:4px 8px;border:1px solid #2a2f3a;border-radius:999px;color:var(--mut)}
+  .calendar{width:100%}
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal-cell{border:1px solid #2a2f3a;border-radius:10px;min-height:64px;padding:6px;position:relative;background:#0e1219}
+  .cal-cell .d{font-size:12px;color:var(--mut)}
+  .cal-cell.read{outline:2px solid #255ad6}
+  .badge{position:absolute;right:6px;bottom:6px;font-size:11px;background:#19223a;padding:2px 6px;border-radius:999px;border:1px solid #2a2f3a}
+  .empty{opacity:.5}
+  .list{margin:0;padding:0;list-style:none}
+  .list li{padding:10px;border-bottom:1px solid #222}
+  .list li:last-child{border-bottom:0}
+  .right{margin-left:auto}
+  .small{font-size:12px}
+  .sep{height:1px;background:#222;margin:12px 0}
+</style>
+</head>
+<body>
+<header><h1>📚 나의 독서 기록</h1></header>
+<div class="wrap grid grid-2">
+  <!-- 좌측: 입력/타이머/진도/소감 -->
+  <section class="grid">
+    <div class="card">
+      <h2>1) 책 정보 & 진도</h2>
+      <div class="row">
+        <div style="flex:1;min-width:220px">
+          <label>도서명 *</label>
+          <input id="title" placeholder="예) 데미안" />
+        </div>
+        <div>
+          <label>총 페이지 *</label>
+          <input id="totalPages" type="number" min="1" placeholder="예) 320" />
+        </div>
+        <div>
+          <label>현재까지 읽은 페이지</label>
+          <input id="currentPage" type="number" min="0" placeholder="예) 85" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div style="flex:1">
+          <div class="progress"><span id="progressBar"></span></div>
+          <div class="row" style="justify-content:space-between;margin-top:6px">
+            <div class="mut small">진도율: <b id="progressPct">0%</b></div>
+            <div class="mut small">남은 페이지: <b id="pagesLeft">-</b></div>
+          </div>
+        </div>
+        <button class="btn ghost" id="saveBook">책 정보 저장</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2) 독서 타이머</h2>
+      <div class="row">
+        <div class="stat"><b id="timerDisplay">00:00:00</b><span class="mut">오늘 누적</span></div>
+        <div class="right inline">
+          <button class="btn primary" id="startBtn">시작</button>
+          <button class="btn warn" id="pauseBtn">일시정지</button>
+          <button class="btn danger" id="resetBtn">리셋</button>
+        </div>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div>
+          <label>이번 세션에 추가한 페이지</label>
+          <input id="sessionPages" type="number" min="0" value="0" />
+        </div>
+        <button class="btn success right" id="logSession">세션 저장</button>
+      </div>
+      <p class="mut small" style="margin-top:8px">세션 저장 시 <b>오늘 날짜</b>로 시간과 페이지가 기록되고, 달력/통계가 갱신됩니다.</p>
+    </div>
+
+    <div class="card">
+      <h2>3) 소감 / 메모</h2>
+      <label>오늘의 한 줄 소감</label>
+      <textarea id="note" placeholder="인상 깊었던 문장, 떠오른 생각 등을 적어보세요."></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="saveNote">소감 저장</button>
+        <span class="mut small" id="noteInfo"></span>
+      </div>
+      <ul class="list" id="noteList"></ul>
+    </div>
+  </section>
+
+  <!-- 우측: 달력/통계/목표 -->
+  <aside class="grid">
+    <div class="card">
+      <h2>4) 달력(읽은 날 표시)</h2>
+      <div class="calendar">
+        <div class="cal-head">
+          <button class="btn ghost small" id="prevMonth">◀</button>
+          <div class="inline">
+            <b id="calTitle">2025-09</b>
+            <span class="pill" id="readDaysPill">읽은 날 0일</span>
+          </div>
+          <button class="btn ghost small" id="nextMonth">▶</button>
+        </div>
+        <div class="cal-grid" id="calWeek">
+          <div class="mut small">일</div><div class="mut small">월</div><div class="mut small">화</div>
+          <div class="mut small">수</div><div class="mut small">목</div><div class="mut small">금</div><div class="mut small">토</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>5) 통계</h2>
+      <div class="kpi">
+        <div class="card">
+          <div class="mut small">이번 달 총 독서 시간</div>
+          <div class="stat"><b id="kpiTotalTime">0분</b></div>
+        </div>
+        <div class="card">
+          <div class="mut small">읽은 날 수</div>
+          <div class="stat"><b id="kpiDays">0일</b></div>
+        </div>
+        <div class="card">
+          <div class="mut small">가장 많이 읽은 요일</div>
+          <div class="stat"><b id="kpiBestWeekday">-</b></div>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <canvas id="chartWeek" height="140"></canvas>
+      </div>
+      <div style="margin-top:14px">
+        <canvas id="chartDaily" height="140"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>6) 목표 설정</h2>
+      <div class="row">
+        <div>
+          <label>이번 달 목표 권수</label>
+          <input id="goalBooks" type="number" min="0" value="3" />
+        </div>
+        <div>
+          <label>하루 목표 시간(분)</label>
+          <input id="goalDailyMin" type="number" min="0" value="30" />
+        </div>
+        <button class="btn" id="saveGoals">목표 저장</button>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div>
+          <div class="mut small">달성 현황</div>
+          <div class="stat"><b id="goalBooksStatus">0 / 3 권</b></div>
+        </div>
+        <div class="right inline">
+          <span class="pill" id="dailyGoalStatus">오늘 0 / 30 분</span>
+        </div>
+      </div>
+      <p class="mut small">권수 달성은 <b>도서 진도율 100%</b>을 달성한 책 수를 기준으로 계산합니다.</p>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* ========= 로컬 스토리지 ========= */
+const LS = {
+  book: 'rt_book',
+  sessions: 'rt_sessions',
+  notes: 'rt_notes',
+  goals: 'rt_goals'
+};
+
+function loadLS(key, fallback){
+  try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch{ return fallback; }
+}
+function saveLS(key, value){
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+/* ========= 상태 ========= */
+let book = loadLS(LS.book, { title:'', totalPages:0, currentPage:0, finished:false, finishedAt:null });
+let sessions = loadLS(LS.sessions, []); // {date:'YYYY-MM-DD', minutes: N, pages: N}
+let notes = loadLS(LS.notes, []);       // {date:'YYYY-MM-DD HH:MM', text:'...'}
+let goals = loadLS(LS.goals, { monthKey: monthKey(new Date()), goalBooks:3, goalDailyMin:30 });
+
+/* ========= 유틸 ========= */
+function pad(n){return String(n).padStart(2,'0');}
+function ymd(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function monthKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1); }
+function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+function minutesToText(m){
+  if(m < 60) return `${m}분`;
+  const h = Math.floor(m/60), mm = m%60;
+  return mm? `${h}시간 ${mm}분` : `${h}시간`;
+}
+function weekdayName(i){ return ['일','월','화','수','목','금','토'][i]; }
+
+/* ========= DOM ========= */
+const $ = (s)=>document.querySelector(s);
+const titleEl = $('#title'), totalPagesEl = $('#totalPages'), currentPageEl = $('#currentPage');
+const progressBar = $('#progressBar'), progressPct = $('#progressPct'), pagesLeft = $('#pagesLeft');
+const saveBookBtn = $('#saveBook');
+
+const timerDisplay = $('#timerDisplay');
+const startBtn = $('#startBtn'), pauseBtn = $('#pauseBtn'), resetBtn = $('#resetBtn');
+const sessionPagesEl = $('#sessionPages'), logSessionBtn = $('#logSession');
+
+const noteEl = $('#note'), saveNoteBtn = $('#saveNote'), noteInfo = $('#noteInfo'), noteList = $('#noteList');
+
+const prevMonthBtn = $('#prevMonth'), nextMonthBtn = $('#nextMonth'), calTitle = $('#calTitle'), calGrid = $('#calGrid'), readDaysPill = $('#readDaysPill');
+
+const kpiTotalTime = $('#kpiTotalTime'), kpiDays = $('#kpiDays'), kpiBestWeekday = $('#kpiBestWeekday');
+
+const goalBooksEl = $('#goalBooks'), goalDailyMinEl = $('#goalDailyMin'), saveGoalsBtn = $('#saveGoals');
+const goalBooksStatus = $('#goalBooksStatus'), dailyGoalStatus = $('#dailyGoalStatus');
+
+/* ========= 초기 렌더 ========= */
+function initInputs(){
+  titleEl.value = book.title||'';
+  totalPagesEl.value = book.totalPages||'';
+  currentPageEl.value = book.currentPage||'';
+  updateProgress();
+  // goals month rollover
+  const now = new Date();
+  if(goals.monthKey !== monthKey(now)){
+    goals.monthKey = monthKey(now);
+    saveLS(LS.goals, goals);
+  }
+  goalBooksEl.value = goals.goalBooks;
+  goalDailyMinEl.value = goals.goalDailyMin;
+}
+initInputs();
+
+/* ========= 진도율 ========= */
+function updateProgress(){
+  const total = Number(totalPagesEl.value)||0;
+  const curr = Math.min(Number(currentPageEl.value)||0, total);
+  let pct = 0;
+  if(total>0){ pct = Math.floor((curr/total)*100); }
+  progressBar.style.width = pct+'%';
+  progressPct.textContent = pct+'%';
+  pagesLeft.textContent = total>0 ? (total-curr) : '-';
+}
+['input','change'].forEach(ev=>{
+  totalPagesEl.addEventListener(ev, updateProgress);
+  currentPageEl.addEventListener(ev, updateProgress);
+});
+saveBookBtn.addEventListener('click', ()=>{
+  book.title = titleEl.value.trim();
+  book.totalPages = Number(totalPagesEl.value)||0;
+  book.currentPage = clamp(Number(currentPageEl.value)||0, 0, book.totalPages);
+  // 완료 체크
+  if(book.totalPages>0 && book.currentPage>=book.totalPages){
+    book.finished = true; 
+    book.finishedAt = book.finishedAt || new Date().toISOString();
+  } else {
+    book.finished = false; 
+    book.finishedAt = null;
+  }
+  saveLS(LS.book, book);
+  updateProgress();
+  alert('책 정보를 저장했습니다.');
+});
+
+/* ========= 타이머 ========= */
+let ticking = false, startTs = null, todayAccMin = getTodayMinutes();
+function getTodayMinutes(){
+  const today = ymd(new Date());
+  return sessions.filter(s=>s.date===today).reduce((a,b)=>a+b.minutes,0);
+}
+function renderTimer(){
+  const totalSec = todayAccMin*60 + (ticking ? Math.floor((Date.now()-startTs)/1000) : 0);
+  const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
+  timerDisplay.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  // 오늘 목표 표시
+  dailyGoalStatus.textContent = `오늘 ${Math.floor(totalSec/60)} / ${goals.goalDailyMin} 분`;
+  dailyGoalStatus.style.borderColor = (totalSec/60)>=goals.goalDailyMin ? '#0e9a6c' : '#2a2f3a';
+  dailyGoalStatus.style.color = (totalSec/60)>=goals.goalDailyMin ? '#a7f3d0' : 'var(--mut)';
+}
+let rafId;
+function loop(){ renderTimer(); rafId = requestAnimationFrame(loop); }
+loop();
+
+startBtn.addEventListener('click', ()=>{
+  if(!ticking){ ticking=true; startTs=Date.now(); }
+});
+pauseBtn.addEventListener('click', ()=>{
+  if(ticking){
+    const addMin = Math.max(0, Math.round((Date.now()-startTs)/60000));
+    todayAccMin += addMin;
+    ticking=false; startTs=null;
+  }
+});
+resetBtn.addEventListener('click', ()=>{
+  if(confirm('오늘 타이머 누적을 0으로 초기화할까요?')){
+    ticking=false; startTs=null; todayAccMin=0; renderTimer();
+  }
+});
+
+/* ========= 세션 저장 ========= */
+logSessionBtn.addEventListener('click', ()=>{
+  if(!book.title){ return alert('도서명을 먼저 입력/저장해주세요.'); }
+  // 타이머도 멈추고 누적 반영
+  if(ticking){
+    const addMin = Math.max(0, Math.round((Date.now()-startTs)/60000));
+    todayAccMin += addMin; ticking=false; startTs=null;
+  }
+  const mins = todayAccMin;
+  const addPages = Number(sessionPagesEl.value)||0;
+  if(mins<=0 && addPages<=0){ return alert('기록할 시간이 없거나 페이지 추가가 0입니다.'); }
+
+  const today = ymd(new Date());
+  sessions.push({date:today, minutes:mins, pages:addPages});
+  saveLS(LS.sessions, sessions);
+
+  // 책 진도 반영
+  if(addPages>0){
+    book.currentPage = clamp((book.currentPage||0)+addPages, 0, book.totalPages||999999);
+    if(book.totalPages>0 && book.currentPage>=book.totalPages){
+      book.finished = true; book.finishedAt = book.finishedAt || new Date().toISOString();
+    }
+    currentPageEl.value = book.currentPage;
+    saveLS(LS.book, book);
+    updateProgress();
+  }
+
+  todayAccMin = 0;
+  sessionPagesEl.value = 0;
+
+  alert('세션을 저장했어요!');
+  renderAllAnalytics();
+});
+
+/* ========= 소감 ========= */
+function renderNotes(){
+  noteList.innerHTML = '';
+  if(notes.length===0){
+    const li = document.createElement('li');
+    li.className='mut'; li.textContent='아직 소감이 없습니다.';
+    noteList.appendChild(li);
+    return;
+  }
+  [...notes].reverse().slice(0,10).forEach(n=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="small mut">${n.date}</div><div>${escapeHtml(n.text)}</div>`;
+    noteList.appendChild(li);
+  });
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+saveNoteBtn.addEventListener('click', ()=>{
+  const t = noteEl.value.trim();
+  if(!t) return alert('내용을 입력해주세요.');
+  const now = new Date();
+  const ts = `${ymd(now)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  notes.push({date:ts, text:t});
+  saveLS(LS.notes, notes);
+  noteEl.value = '';
+  noteInfo.textContent = '저장됨';
+  setTimeout(()=>noteInfo.textContent='', 1500);
+  renderNotes();
+});
+
+/* ========= 달력 ========= */
+let calRef = new Date(); // 현재 표시 월
+function buildCalendar(){
+  const year = calRef.getFullYear(), month = calRef.getMonth(); // 0~11
+  calTitle.textContent = `${year}-${pad(month+1)}`;
+
+  // 이 달의 세션 맵
+  const map = new Map(); // dateStr -> minutes
+  sessions.forEach(s=>{
+    const d = new Date(s.date+'T00:00:00');
+    if(d.getFullYear()===year && d.getMonth()===month){
+      map.set(s.date, (map.get(s.date)||0) + s.minutes);
+    }
+  });
+
+  // 1일의 요일
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month+1, 0).getDate();
+  const lead = first.getDay(); // 0=일
+  const cells = [];
+
+  // 앞 빈칸
+  for(let i=0;i<lead;i++){ cells.push({empty:true}); }
+  // 날짜
+  for(let d=1; d<=last; d++){
+    const ds = `${year}-${pad(month+1)}-${pad(d)}`;
+    const mins = map.get(ds)||0;
+    cells.push({day:d, minutes:mins});
+  }
+  // 뒷 빈칸(총 6주 그리드 맞춤)
+  while(cells.length%7!==0) cells.push({empty:true});
+
+  calGrid.innerHTML = '';
+  let readDays = 0;
+  cells.forEach(c=>{
+    const div = document.createElement('div');
+    div.className = 'cal-cell' + (c.empty? ' empty':'' ) + ((c.minutes>0 && !c.empty)? ' read':'' );
+    if(!c.empty){
+      if(c.minutes>0) readDays++;
+      div.innerHTML = `<div class="d">${c.day}</div>` + (c.minutes>0? `<div class="badge">${minutesToText(c.minutes)}</div>`:'');
+    }
+    calGrid.appendChild(div);
+  });
+  readDaysPill.textContent = `읽은 날 ${readDays}일`;
+}
+prevMonthBtn.addEventListener('click', ()=>{ calRef.setMonth(calRef.getMonth()-1); buildCalendar(); });
+nextMonthBtn.addEventListener('click', ()=>{ calRef.setMonth(calRef.getMonth()+1); buildCalendar(); });
+
+/* ========= 통계 ========= */
+let chartWeek, chartDaily;
+
+function getMonthSessions(dRef){
+  const y = dRef.getFullYear(), m = dRef.getMonth();
+  return sessions.filter(s=>{
+    const d = new Date(s.date+'T00:00:00');
+    return d.getFullYear()===y && d.getMonth()===m;
+  });
+}
+function computeMonthStats(dRef){
+  const arr = getMonthSessions(dRef);
+  const totalMin = arr.reduce((a,b)=>a+b.minutes,0);
+  const daySet = new Set(arr.map(s=>s.date));
+  const perWeekday = [0,0,0,0,0,0,0];
+  arr.forEach(s=>{
+    const d = new Date(s.date+'T00:00:00');
+    perWeekday[d.getDay()] += s.minutes;
+  });
+  const bestIdx = perWeekday.reduce((bi,cur,i,ar)=> cur>ar[bi]? i:bi, 0);
+  return { totalMin, readDays: daySet.size, perWeekday };
+}
+function buildCharts(){
+  const ctxW = document.getElementById('chartWeek');
+  const ctxD = document.getElementById('chartDaily');
+
+  const lblW = ['일','월','화','수','목','금','토'];
+  const perW = computeMonthStats(calRef).perWeekday;
+
+  chartWeek && chartWeek.destroy();
+  chartWeek = new Chart(ctxW, {
+    type:'bar',
+    data:{ labels: lblW, datasets:[{ label:'요일별 독서(분)', data: perW }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} } }
+  });
+
+  // 일자별
+  const y = calRef.getFullYear(), m = calRef.getMonth();
+  const last = new Date(y, m+1, 0).getDate();
+  const byDay = Array.from({length:last}, (_,i)=>0);
+  getMonthSessions(calRef).forEach(s=>{
+    const d = new Date(s.date+'T00:00:00').getDate();
+    byDay[d-1] += s.minutes;
+  });
+  chartDaily && chartDaily.destroy();
+  chartDaily = new Chart(ctxD, {
+    type:'line',
+    data:{ labels: byDay.map((_,i)=>String(i+1)), datasets:[{ label:'일자별 독서(분)', data: byDay, fill:false, tension:.25 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} } }
+  });
+}
+
+function renderKPIs(){
+  const st = computeMonthStats(calRef);
+  kpiTotalTime.textContent = minutesToText(st.totalMin);
+  kpiDays.textContent = `${st.readDays}일`;
+  kpiBestWeekday.textContent = st.perWeekday.every(v=>v===0)? '-' : weekdayName(st.perWeekday.indexOf(Math.max(...st.perWeekday)));
+}
+
+/* ========= 목표 ========= */
+function countFinishedBooksThisMonth(){
+  if(!book.finished || !book.finishedAt) return 0;
+  const d = new Date(book.finishedAt);
+  return (monthKey(d)===monthKey(calRef)) ? 1 : 0;
+}
+function renderGoals(){
+  const finished = countFinishedBooksThisMonth();
+  goalBooksStatus.textContent = `${finished} / ${goals.goalBooks} 권`;
+  goalBooksStatus.style.color = finished>=goals.goalBooks ? '#a7f3d0' : 'var(--tx)';
+}
+saveGoalsBtn.addEventListener('click', ()=>{
+  goals.goalBooks = Math.max(0, Number(goalBooksEl.value)||0);
+  goals.goalDailyMin = Math.max(0, Number(goalDailyMinEl.value)||0);
+  goals.monthKey = monthKey(new Date());
+  saveLS(LS.goals, goals);
+  renderGoals();
+  renderTimer();
+  alert('목표를 저장했어요!');
+});
+
+/* ========= 종합 렌더 ========= */
+function renderAllAnalytics(){
+  buildCalendar();
+  buildCharts();
+  renderKPIs();
+  renderGoals();
+  renderNotes();
+}
+renderAllAnalytics();
+
+/* ========= 초기 페이지 로드시 경고(필수 입력) ========= */
+window.addEventListener('load', ()=>{
+  if(!book.title || !book.totalPages){
+    // 안내만 (차단X)
+    console.info('도서명과 총 페이지를 입력/저장하면 진도율과 목표 달성이 정확해져요.');
+  }
+});
+</script>
+</body>
+</html>
